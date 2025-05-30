@@ -33,7 +33,16 @@
       border-radius: 6px;
       font-size: 14px;
       max-width: 400px;
+      height: 90vh;
+      overflow-y: auto;
       z-index: 10;
+      width: 400px;
+      box-sizing: border-box;
+    }
+    #gate-history, #calc-log {
+      padding-left: 20px;
+      margin-top: 4px;
+      margin-bottom: 10px;
     }
   </style>
 </head>
@@ -49,8 +58,10 @@
 </div>
 
 <div id="log">
-  <b>Gate History:</b><br>
-  <ul id="gate-history" style="padding-left: 20px;"></ul>
+  <b>Gate History:</b>
+  <ul id="gate-history"></ul>
+  <b>Calculation Log:</b>
+  <ul id="calc-log"></ul>
 </div>
 
 <script>
@@ -70,6 +81,9 @@ let targetStates = ['|1⟩', '(|0⟩ + |1⟩)/√2', '-|1⟩'];
 let targetState = '';
 let currentState = '|0⟩';
 
+// To keep track of calculation steps
+let calcSteps = [];
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
   groundY = height - 80;
@@ -82,9 +96,11 @@ function resetLevel() {
   gates = [];
   gateTimer = 0;
   currentState = '|0⟩';
+  calcSteps = ['Initial State: |0⟩'];
   targetState = random(targetStates);
   updateUI();
   updateHistory();
+  updateCalcLog();
 }
 
 function updateUI() {
@@ -99,6 +115,16 @@ function updateHistory() {
   collectedGates.forEach(g => {
     const li = document.createElement('li');
     li.textContent = g;
+    list.appendChild(li);
+  });
+}
+
+function updateCalcLog() {
+  const list = document.getElementById('calc-log');
+  list.innerHTML = '';
+  calcSteps.forEach(step => {
+    const li = document.createElement('li');
+    li.textContent = step;
     list.appendChild(li);
   });
 }
@@ -174,6 +200,8 @@ function applyGate(gate) {
   }
 
   collectedGates.push(gate);
+
+  let prevState = currentState;
   if (gate === 'X') {
     currentState = currentState === '|0⟩' ? '|1⟩' :
                    currentState === '|1⟩' ? '|0⟩' :
@@ -186,8 +214,12 @@ function applyGate(gate) {
                    currentState === '-|1⟩' ? '|1⟩' : currentState;
   }
 
+  // Add to calculation log
+  calcSteps.push(`After ${gate} gate: ${prevState} → ${currentState}`);
+
   updateUI();
   updateHistory();
+  updateCalcLog();
 }
 
 function measure() {
@@ -201,6 +233,7 @@ function measure() {
   }
   resetLevel();
   updateUI();
+  updateCalcLog();
 }
 
 function draw() {
@@ -239,3 +272,4 @@ function keyPressed() {
 
 </body>
 </html>
+
