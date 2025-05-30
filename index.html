@@ -12,25 +12,19 @@
       background: #111;
       color: #eee;
       font-family: 'Courier New', Courier, monospace;
+      text-align: center;
     }
-    #info, #log {
+    #info {
       position: fixed;
       top: 8px;
+      left: 8px;
       font-size: 14px;
+      color: #eee;
       background: #222a;
       padding: 8px;
       border-radius: 5px;
       max-width: 400px;
       z-index: 100;
-    }
-    #info {
-      left: 8px;
-    }
-    #log {
-      right: 8px;
-      max-height: 90vh;
-      overflow-y: auto;
-      white-space: pre-wrap;
     }
   </style>
 </head>
@@ -40,25 +34,22 @@
   <b>Quantum Dino Run</b><br>
   Collect quantum gates to change qubit state.<br>
   Target: <span id="target-state"></span><br>
-  Current: <span id="current-state"></span><br>
+  Current State: <span id="current-state"></span><br>
+  Score: <span id="score">0</span><br>
   Press UP arrow to jump<br><br>
-  After collecting 5 gates, you will measure.
+  Collect 'M' gate to measure your state.
 </div>
-
-<div id="log"><b>Gate Log</b><br></div>
 
 <script>
 let dino;
 let groundY;
 let gravity = 0.8;
 let gates = [];
-let gateTypes = ['X', 'H', 'Z'];
+let gateTypes = ['X', 'H', 'Z', 'M'];
 let gateSize = 40;
-let gateSpawnInterval = 120;
+let gateSpawnInterval = 100;
 let gateTimer = 0;
 let score = 0;
-let collectedGates = [];
-let logDiv;
 
 let targetStates = ['|1⟩', '(|0⟩ + |1⟩)/√2', '-|1⟩'];
 let targetState = '';
@@ -68,25 +59,20 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   groundY = height - 80;
   dino = new Dino();
-  logDiv = document.getElementById("log");
-  resetLevel();
+  resetTarget();
   updateUI();
 }
 
-function resetLevel() {
-  collectedGates = [];
-  score = 0;
+function resetTarget() {
   currentState = '|0⟩';
   targetState = random(targetStates);
   updateUI();
-  gates = [];
-  gateTimer = 0;
-  logDiv.innerHTML = "<b>Gate Log</b><br>";
 }
 
 function updateUI() {
   document.getElementById('target-state').textContent = targetState;
   document.getElementById('current-state').textContent = currentState;
+  document.getElementById('score').textContent = score;
 }
 
 class Dino {
@@ -97,7 +83,7 @@ class Dino {
     this.yVelocity = 0;
     this.onGround = true;
   }
-  
+
   update() {
     this.yVelocity += gravity;
     this.y += this.yVelocity;
@@ -107,24 +93,19 @@ class Dino {
       this.onGround = true;
     }
   }
-  
+
   jump() {
     if (this.onGround) {
       this.yVelocity = -15;
       this.onGround = false;
     }
   }
-  
+
   draw() {
     fill(0, 255, 100);
-    ellipse(this.x + this.size / 2, this.y - this.size / 2, this.size); // circular body
-    stroke(0, 255, 100);
-    strokeWeight(4);
-    noFill();
-    arc(this.x + this.size / 2, this.y - this.size / 2, this.size, this.size, HALF_PI, PI + HALF_PI); // q tail
-    noStroke();
-    fill(0);
-    ellipse(this.x + this.size * 0.65, this.y - this.size * 0.65, 8, 8); // eye
+    textSize(this.size);
+    textAlign(CENTER, BOTTOM);
+    text('q', this.x + this.size / 2, this.y);
   }
 }
 
@@ -142,7 +123,7 @@ class Gate {
   }
 
   draw() {
-    fill(100, 200, 255);
+    fill(this.type === 'M' ? '#f77' : '#6cf');
     rect(this.x, this.y - this.size, this.size, this.size);
     fill(0);
     textSize(28);
@@ -161,7 +142,6 @@ class Gate {
 }
 
 function applyGate(gate) {
-  let before = currentState;
   if (gate === 'X') {
     if (currentState === '|0⟩') currentState = '|1⟩';
     else if (currentState === '|1⟩') currentState = '|0⟩';
@@ -176,24 +156,23 @@ function applyGate(gate) {
     else if (currentState === '-|1⟩') currentState = '|1⟩';
   }
   updateUI();
-  logDiv.innerHTML += `[✔] ${gate} applied → ${before} → ${currentState}<br>`;
-  logDiv.scrollTop = logDiv.scrollHeight;
 }
 
 function measure() {
-  let success = currentState === targetState;
-  if (success) {
-    alert('🎉 Success! You reached ' + targetState + '!');
+  if (currentState === targetState) {
+    score++;
+    alert('🎉 Success! State matched: ' + targetState);
   } else {
-    alert('❌ Incorrect. You reached ' + currentState + ', target was ' + targetState);
+    alert('❌ Incorrect. You had: ' + currentState + '\nTarget was: ' + targetState);
   }
-  resetLevel();
+  resetTarget();
 }
 
 function draw() {
   background(17);
   stroke(100);
   line(0, groundY + 1, width, groundY + 1);
+
   dino.update();
   dino.draw();
 
@@ -208,13 +187,12 @@ function draw() {
     gates[i].draw();
 
     if (gates[i].isCollected(dino)) {
-      applyGate(gates[i].type);
-      collectedGates.push(gates[i].type);
-      gates.splice(i, 1);
-
-      if (collectedGates.length >= 5) {
+      if (gates[i].type === 'M') {
         measure();
+      } else {
+        applyGate(gates[i].type);
       }
+      gates.splice(i, 1);
     } else if (gates[i].x < -gateSize) {
       gates.splice(i, 1);
     }
@@ -227,6 +205,6 @@ function keyPressed() {
   }
 }
 </script>
+
 </body>
 </html>
-
