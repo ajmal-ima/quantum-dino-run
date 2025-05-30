@@ -12,19 +12,28 @@
       background: #111;
       color: #eee;
       font-family: 'Courier New', Courier, monospace;
-      text-align: center;
     }
     #info {
       position: fixed;
       top: 8px;
       left: 8px;
-      font-size: 14px;
-      color: #eee;
       background: #222a;
-      padding: 8px;
-      border-radius: 5px;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 14px;
       max-width: 400px;
-      z-index: 100;
+      z-index: 10;
+    }
+    #log {
+      position: fixed;
+      top: 8px;
+      right: 8px;
+      background: #222a;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 14px;
+      max-width: 400px;
+      z-index: 10;
     }
   </style>
 </head>
@@ -32,12 +41,16 @@
 
 <div id="info">
   <b>Quantum Dino Run</b><br>
-  Collect quantum gates to change qubit state.<br>
-  Target: <span id="target-state"></span><br>
+  Target State: <span id="target-state"></span><br>
   Current State: <span id="current-state"></span><br>
-  Score: <span id="score">0</span><br>
-  Press UP arrow to jump<br><br>
-  Collect 'M' gate to measure your state.
+  Score: <span id="score"></span><br>
+  Press UP to jump<br><br>
+  Collect gates to reach the target state, then collect a Measurement (M) gate.<br>
+</div>
+
+<div id="log">
+  <b>Gate History:</b><br>
+  <ul id="gate-history" style="padding-left: 20px;"></ul>
 </div>
 
 <script>
@@ -45,11 +58,13 @@ let dino;
 let groundY;
 let gravity = 0.8;
 let gates = [];
-let gateTypes = ['X', 'H', 'Z', 'M'];
+let gateTypes = ['X', 'H', 'Z', 'M']; // M = Measurement
 let gateSize = 40;
-let gateSpawnInterval = 100;
+let gateSpawnInterval = 90;
 let gateTimer = 0;
+
 let score = 0;
+let collectedGates = [];
 
 let targetStates = ['|1⟩', '(|0⟩ + |1⟩)/√2', '-|1⟩'];
 let targetState = '';
@@ -59,20 +74,33 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   groundY = height - 80;
   dino = new Dino();
-  resetTarget();
-  updateUI();
+  resetLevel();
 }
 
-function resetTarget() {
+function resetLevel() {
+  collectedGates = [];
+  gates = [];
+  gateTimer = 0;
   currentState = '|0⟩';
   targetState = random(targetStates);
   updateUI();
+  updateHistory();
 }
 
 function updateUI() {
   document.getElementById('target-state').textContent = targetState;
   document.getElementById('current-state').textContent = currentState;
   document.getElementById('score').textContent = score;
+}
+
+function updateHistory() {
+  const list = document.getElementById('gate-history');
+  list.innerHTML = '';
+  collectedGates.forEach(g => {
+    const li = document.createElement('li');
+    li.textContent = g;
+    list.appendChild(li);
+  });
 }
 
 class Dino {
@@ -103,9 +131,9 @@ class Dino {
 
   draw() {
     fill(0, 255, 100);
-    textSize(this.size);
-    textAlign(CENTER, BOTTOM);
-    text('q', this.x + this.size / 2, this.y);
+    rect(this.x, this.y - this.size, this.size, this.size);
+    fill(0);
+    ellipse(this.x + this.size * 0.75, this.y - this.size * 0.75, 10, 10);
   }
 }
 
@@ -123,49 +151,56 @@ class Gate {
   }
 
   draw() {
-    fill(this.type === 'M' ? '#f77' : '#6cf');
+    fill(this.type === 'M' ? '#ff7070' : '#66ccff');
     rect(this.x, this.y - this.size, this.size, this.size);
     fill(0);
-    textSize(28);
+    textSize(26);
     textAlign(CENTER, CENTER);
     text(this.type, this.x + this.size / 2, this.y - this.size / 2);
   }
 
   isCollected(dino) {
-    return (
-      this.x < dino.x + dino.size &&
+    return (this.x < dino.x + dino.size &&
       this.x + this.size > dino.x &&
       this.y > dino.y - dino.size &&
-      this.y - this.size < dino.y
-    );
+      this.y - this.size < dino.y);
   }
 }
 
 function applyGate(gate) {
-  if (gate === 'X') {
-    if (currentState === '|0⟩') currentState = '|1⟩';
-    else if (currentState === '|1⟩') currentState = '|0⟩';
-  } else if (gate === 'H') {
-    if (currentState === '|0⟩' || currentState === '|1⟩') {
-      currentState = '(|0⟩ + |1⟩)/√2';
-    } else {
-      currentState = '|0⟩';
-    }
-  } else if (gate === 'Z') {
-    if (currentState === '|1⟩') currentState = '-|1⟩';
-    else if (currentState === '-|1⟩') currentState = '|1⟩';
+  if (gate === 'M') {
+    measure();
+    return;
   }
+
+  collectedGates.push(gate);
+  if (gate === 'X') {
+    currentState = currentState === '|0⟩' ? '|1⟩' :
+                   currentState === '|1⟩' ? '|0⟩' :
+                   currentState === '-|1⟩' ? '-|1⟩' :
+                   currentState;
+  } else if (gate === 'H') {
+    currentState = (currentState === '|0⟩' || currentState === '|1⟩') ? '(|0⟩ + |1⟩)/√2' : '|0⟩';
+  } else if (gate === 'Z') {
+    currentState = currentState === '|1⟩' ? '-|1⟩' :
+                   currentState === '-|1⟩' ? '|1⟩' : currentState;
+  }
+
   updateUI();
+  updateHistory();
 }
 
 function measure() {
-  if (currentState === targetState) {
-    score++;
-    alert('🎉 Success! State matched: ' + targetState);
+  let success = (currentState === targetState);
+  if (success) {
+    score += 10;
+    alert('✅ Correct! You reached ' + targetState + '. +10 points!');
   } else {
-    alert('❌ Incorrect. You had: ' + currentState + '\nTarget was: ' + targetState);
+    score -= 5;
+    alert('❌ Incorrect state! You were at ' + currentState + '. -5 points.');
   }
-  resetTarget();
+  resetLevel();
+  updateUI();
 }
 
 function draw() {
@@ -187,11 +222,7 @@ function draw() {
     gates[i].draw();
 
     if (gates[i].isCollected(dino)) {
-      if (gates[i].type === 'M') {
-        measure();
-      } else {
-        applyGate(gates[i].type);
-      }
+      applyGate(gates[i].type);
       gates.splice(i, 1);
     } else if (gates[i].x < -gateSize) {
       gates.splice(i, 1);
