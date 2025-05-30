@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Quantum Dino Run</title>
+  <title>Quantum Dino Run - Level 2</title>
   <style>
     body {
       margin: 0;
@@ -19,7 +19,7 @@
     }
     #sidebar {
       padding: 1em;
-      width: 300px;
+      width: 350px;
     }
     .gate {
       color: #0ff;
@@ -31,10 +31,15 @@
   <div id="sidebar">
     <h2>Quantum State</h2>
     <p id="state">|ψ⟩ = |0⟩</p>
+    <h3>Target State</h3>
+    <p id="targetState">|ψ⟩ = (1/√2)|0⟩ + (1/√2)|1⟩</p>
+    <h3>Match %</h3>
+    <p id="match">0%</p>
     <h3>Gate Applied</h3>
     <p id="gateInfo">None</p>
     <h3>Matrix Calc</h3>
     <pre id="matrixCalc">-</pre>
+    <h3 id="levelStatus"></h3>
   </div>
 
   <script>
@@ -51,6 +56,13 @@
             [1/Math.sqrt(2),-1/Math.sqrt(2)]],
       'Z': [[1,0],[0,-1]]
     };
+
+    const targetStates = [
+      { label: "|1⟩", vector: [0, 1] },
+      { label: "(|0⟩ + |1⟩)/√2", vector: [1/Math.sqrt(2), 1/Math.sqrt(2)] },
+      { label: "(|0⟩ - |1⟩)/√2", vector: [1/Math.sqrt(2), -1/Math.sqrt(2)] }
+    ];
+    let level = 0;
 
     function spawnGate() {
       const types = ['X', 'H', 'Z'];
@@ -82,13 +94,38 @@
       updateSidebar(gateMatrix);
     }
 
+    function similarity(stateA, stateB) {
+      const dot = stateA[0] * stateB[0] + stateA[1] * stateB[1];
+      const magA = Math.sqrt(stateA[0]**2 + stateA[1]**2);
+      const magB = Math.sqrt(stateB[0]**2 + stateB[1]**2);
+      return Math.abs(dot / (magA * magB));
+    }
+
     function updateSidebar(gateMatrix) {
-      const stateText = `|ψ⟩ = (${state[0].toFixed(2)})|0⟩ + (${state[1].toFixed(2)})|1⟩`;
-      document.getElementById('state').innerText = stateText;
+      const st = `|ψ⟩ = (${state[0].toFixed(2)})|0⟩ + (${state[1].toFixed(2)})|1⟩`;
+      document.getElementById('state').innerText = st;
       document.getElementById('gateInfo').innerText = `Applied: ${gate.type} Gate`;
       document.getElementById('matrixCalc').innerText =
         `⎡${gateMatrix[0][0].toFixed(2)} ${gateMatrix[0][1].toFixed(2)}⎤\n` +
         `⎣${gateMatrix[1][0].toFixed(2)} ${gateMatrix[1][1].toFixed(2)}⎦`;
+
+      const targetVec = targetStates[level].vector;
+      const match = similarity(state, targetVec);
+      document.getElementById('match').innerText = `${(match * 100).toFixed(1)}%`;
+
+      if (match > 0.98) {
+        document.getElementById('levelStatus').innerText = "✅ Level Complete!";
+        level = (level + 1) % targetStates.length;
+        resetGame();
+      }
+    }
+
+    function resetGame() {
+      state = [1, 0];
+      player = { x: 10, y: 10, size: gridSize };
+      gate = spawnGate();
+      document.getElementById('targetState').innerText = `|ψ⟩ = ${targetStates[level].label}`;
+      document.getElementById('levelStatus').innerText = "";
     }
 
     let direction = { x: 0, y: 0 };
@@ -123,6 +160,7 @@
       requestAnimationFrame(gameLoop);
     }
 
+    resetGame();
     gameLoop();
   </script>
 </body>
